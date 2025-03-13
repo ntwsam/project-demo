@@ -16,15 +16,14 @@ passport.use(
                 const [rows] = await pool.promise().query('SELECT * FROM Users WHERE email = ?', [email])
                 const user = rows[0]
                 if (!user) {
-                    return done(null,false,{message: '⚠️ Invalid email'})
+                    return done(null, false, {message: '⚠️ Invalid email'})
                 }
                 const isMatch = await bcrypt.compare(password, user.password)
                 if (!isMatch) {
-                    return done(null,false,{message: '⚠️ Invalid password'})
+                    return done(null, false, {message: '⚠️ Invalid password'})
                 }
                 return done(null, user)
-            }
-            catch (err) {
+            } catch (err) {
                 return done(err)
             }
         }
@@ -83,12 +82,11 @@ passport.serializeUser((user, done) => {
 
 // 📌 ใช้ร้องขอดึงข้อมูลจาก session
 passport.deserializeUser(async (id, done) => {
-    try{
+    try {
         const [rows] = await pool.promise().query('SELECT * FROM Users WHERE id = ?', [id])
         const user = rows[0]
         done(null, user)
-    }
-    catch (err) {
+    } catch (err) {
         return done(err)
     }
 })

@@ -14,7 +14,7 @@ const options = {
             },
         ],
     },
-    apis: ['./src/routes/*.js', './src/controller/*.js'], // ระบุ path ของไฟล์ที่มี Swagger documentation
+    apis: ['./src/routes/*.js', './src/controllers/*.js'], // ระบุ path ของไฟล์ที่มี Swagger documentation
 };
 
 const specs = swaggerJsdoc(options);

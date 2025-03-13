@@ -1,4 +1,4 @@
-exports.errorHandler =(err,req,res,next)=>{
+exports.errorHandler = (err, req, res, next) => {
     console.log(err.stack)
 
     let statusCode = 500

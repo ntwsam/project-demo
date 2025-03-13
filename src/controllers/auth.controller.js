@@ -2,7 +2,7 @@ const pool = require("../config/mysql.config")
 const bcrypt = require("bcryptjs")
 const escapeHtml = require("escape-html") // 💡 ไว้ป้องกัน XSS attacks
 const {adminRegisterSchema, registerSchema} = require("../utils/registerSchema");
-const { v4: uuidV4 } = require('uuid');
+const {v4: uuidV4} = require('uuid');
 
 /**
  * @swagger
@@ -127,7 +127,7 @@ exports.adminRegister = async (req, res, next) => {
             res.status(400).json({message: err.details[0].message});
         }
         // 💡 rename username จาก server
-        const {email, username: rawUsername, password, phone ,secretKey} = value
+        const {email, username: rawUsername, password, phone, secretKey} = value
         // 💡 escape username
         const username = escapeHtml(rawUsername)
         // 💡 ตรวจสอบ admin secret key
@@ -156,8 +156,7 @@ exports.adminRegister = async (req, res, next) => {
                 phone: req.body.phone
             }
         })
-    }
-    catch(err){
+    } catch (err) {
         next(err)
     }
 }
@@ -281,7 +280,7 @@ exports.register = async (req, res, next) => {
         // 💡 เพิ่มข้อมูล
         const uuid = uuidV4()
         const [result] = await pool.promise().query('INSERT INTO Users (uuid, email, username, password, phone, role) VALUES (?, ?,?,?,?)',
-            [uuid ,email, username, hashedPassword, phone, role]);
+            [uuid, email, username, hashedPassword, phone, role]);
         res.status(201).json({
             message: '🎉 User registered successfully!',
             user: {
@@ -293,8 +292,7 @@ exports.register = async (req, res, next) => {
                 phone: result.phone
             }
         })
-    }
-    catch (err) {
+    } catch (err) {
         next(err);
     }
 }
@@ -409,8 +407,7 @@ exports.login = async (req, res, next) => {
                 phone: user.phone
             }
         })
-    }
-    catch (err) {
+    } catch (err) {
         next(err);
     }
 
@@ -467,9 +464,9 @@ exports.logout = async (req, res, next) => {
                 return next(err);
             }
             res.clearCookie('connect.sid');
-            res.status(200).json({ message: '🎉 Logout successfully!' });
+            res.status(200).json({message: '🎉 Logout successfully!'});
         });
     } else {
-        res.status(401).json({ message: '⚠️ Not logged in' });
+        res.status(401).json({message: '⚠️ Not logged in'});
     }
 };
