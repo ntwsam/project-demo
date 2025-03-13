@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const authController = require('../controller/auth.controller')
+const authController = require('../controllers/auth.controller')
 const rateLimiter = require('../middleware/rateLimiter')
 const passport = require('../config/passport.config')
 
