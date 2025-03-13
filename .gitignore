@@ -1,0 +1,11 @@
+# Node.js modules
+node_modules/
+
+# JetBrains IDEs (WebStorm, PhpStorm, IntelliJ, etc.) settings
+.idea/
+
+# Enviroment
+.env
+
+# Script
+src/scripts/
