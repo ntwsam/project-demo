@@ -14,8 +14,8 @@ async function processLogin(provider, profile, done) {
             ])
             return done(null, existingUser[0]);
         } else {
-            const [result] = await pool.promise().query('INSERT INTO Users (provider, providerId, uuid, username, email) VALUES (?, ?, ?, ?, ?)', [
-                provider, profile.id, uuid, username, email])
+            const [result] = await pool.promise().query('INSERT INTO Users (provider, providerId, uuid, username, email, password, phone) VALUES (?, ?, ?, ?, ?, ?, ?)', [
+                provider, profile.id, uuid, username, email, null, null])
             const [newUser] = await pool.promise().query('SELECT * FROM Users WHERE id = ?', [result.insertId])
             return done(null, newUser[0]);
         }
