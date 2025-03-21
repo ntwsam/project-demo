@@ -8,15 +8,24 @@ const options = {
             version: '1.0.0',
             description: 'API Documentation',
         },
+        // components:{
+        //     securitySchemes:{
+        //         bearerAuth:{
+        //             type: 'http',
+        //             scheme: 'bearer',
+        //             bearerFormat: 'JWT',
+        //         }
+        //     }
+        // },
         servers: [
             {
-                url: process.env.BASE_URL, // หรือ URL ของ server ของคุณ
+                url: process.env.BASE_URL, // 💡 หรือ URL ของ server ของคุณ
             },
         ],
     },
-    apis: ['./src/routes/*.js', './src/controllers/*.js'], // ระบุ path ของไฟล์ที่มี Swagger documentation
+    apis: ['./src/controllers/*.js'], // 💡 ระบุ path ของไฟล์ที่มี Swagger documentation
 };
 
 const specs = swaggerJsdoc(options);
 
-module.exports = {specs}
+module.exports = { specs }

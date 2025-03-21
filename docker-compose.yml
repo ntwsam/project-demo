@@ -1,0 +1,88 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT}:${PORT}"
+    environment:
+      # 🐈 โครงสร้าง MySQL
+      DB_HOST: mysql
+      DB_USER: "${DB_USER}"
+      DB_PASSWORD: "${DB_PASSWORD}"
+      DB_NAME: "${DB_NAME}"
+      DB_PORT: "${DB_PORT}"
+
+      # 🐈 โครงสร้าง MongoDB
+      MONGODB_URI: "mongodb://mongo:${MONGO_PORT}/${DB_NAME}"
+      MONGO_PORT: 27017
+
+      # 🐈 ตัวแปรสภาพแวดล้อม
+      NODE_ENV: "${NODE_ENV}"
+      BASE_URL: "http://localhost:${PORT}"
+      PORT: "${PORT}"
+
+      # 🐈 key ไว้สำหรับสมัคร admin
+      ADMIN_SECRET_KEY: "${ADMIN_SECRET_KEY}"
+
+      # 🐈 key ไว้สำหรับ jsonwebtoken
+      JWT_SECRET: "${JWT_SECRET}"
+      JWT_REFRESH_SECRET: "${JWT_REFRESH_SECRET}"
+
+      # 🐈 session_secret
+      SESSION_SECRET: "${SESSION_SECRET}"
+
+      # 🐈 Google
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET}"
+
+      # 🐈 Github
+      GITHUB_CLIENT_ID: "${GITHUB_CLIENT_ID}"
+      GITHUB_CLIENT_SECRET: "${GITHUB_CLIENT_SECRET}"
+
+      # 🐈 Facebook
+      FACEBOOK_APP_ID: "${FACEBOOK_APP_ID}"
+      FACEBOOK_APP_SECRET: "${FACEBOOK_APP_SECRET}"
+
+      # 🐈 Email
+      EMAIL_HOST: "${EMAIL_HOST}"
+      EMAIL_PORT: "${EMAIL_PORT}"
+      EMAIL_SECURE: "${EMAIL_SECURE}"
+      EMAIL_USER: "${EMAIL_USER}"
+      EMAIL_PASS: "${EMAIL_PASS}"
+      EMAIL_FROM: "${EMAIL_FROM}"
+    depends_on:
+      - mysql
+      - mongo
+    networks:
+      - app-network
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_PASSWORD}"
+      MYSQL_DATABASE: "${DB_NAME}"
+      MYSQL_USER: "${DB_USER}"
+      MYSQL_PASSWORD: "${DB_PASSWORD}"
+    ports:
+      - "${DB_PORT}:${DB_PORT}"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app-network
+
+  mongo:
+    image: mongo:latest
+    ports:
+      - "${MONGO_PORT}:${MONGO_PORT}"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  mongodb_data:

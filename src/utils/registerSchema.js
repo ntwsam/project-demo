@@ -15,3 +15,24 @@ exports.registerSchema = joi.object({
     role: joi.string().valid("customer", "seller").required(),
     phone: joi.string().required()
 })
+
+exports.changePassword = joi.object({
+    oldPassword: joi.string().required(),
+    newPassword: joi.string().min(8).required(),
+})
+
+exports.updateSchema = joi.object({
+    username: joi.string().optional(),
+    email: joi.string().email().optional(),
+    phone: joi.string().optional(),
+    role: joi.string().valid("customer", "seller").optional(),
+})
+
+exports.emailVerify = joi.object({
+    email: joi.string().email().required(),
+})
+
+exports.resetPassword = joi.object({
+    token: joi.string().required(),
+    newPassword: joi.string().min(8).required(),
+})

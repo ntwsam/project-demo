@@ -1,8 +1,11 @@
-const pool = require("../config/mysql.config")
-const bcrypt = require("bcryptjs")
-const escapeHtml = require("escape-html") // 💡 ไว้ป้องกัน XSS attacks
-const {adminRegisterSchema, registerSchema} = require("../utils/registerSchema");
-const {v4: uuidV4} = require('uuid');
+const Users = require('../models/users.model');
+const bcrypt = require('bcryptjs')
+const escapeHtml = require('escape-html') // 💡 ไว้ป้องกัน XSS attacks
+const { v4: uuidV4 } = require('uuid');
+const jwt = require('jsonwebtoken');
+
+const jwtToken = require('../services/jwt.service')
+const { adminRegisterSchema, registerSchema } = require('../utils/registerSchema');
 
 /**
  * @swagger
@@ -15,7 +18,7 @@ const {v4: uuidV4} = require('uuid');
 /**
  * @swagger
  * paths:
- *   /admin/register:
+ *   /auth/admin/register:
  *     post:
  *       tags:
  *         - Authentication
@@ -122,38 +125,43 @@ const {v4: uuidV4} = require('uuid');
 
 exports.adminRegister = async (req, res, next) => {
     try {
-        const {err, value} = adminRegisterSchema.validate(req.body);
+        const { err, value } = adminRegisterSchema.validate(req.body);
         if (err) {
-            res.status(400).json({message: err.details[0].message});
+            res.status(400).json({ message: err.details[0].message });
         }
         // 💡 rename username จาก server
-        const {email, username: rawUsername, password, phone, secretKey} = value
+        const { email, username: rawUsername, password, phone, secretKey } = value
         // 💡 escape username
         const username = escapeHtml(rawUsername)
         // 💡 ตรวจสอบ admin secret key
         if (secretKey !== process.env.ADMIN_SECRET_KEY) {
-            return res.status(403).json({message: "Invalid key."})
+            return res.status(403).json({ message: "Invalid key." })
         }
         const hashedPassword = await bcrypt.hash(password, 12);
         // 💡 ตรวจสอบ email
-        const [existingUser] = await pool.promise().query('SELECT * FROM Users WHERE email = ?', [email])
-        if (existingUser.length > 0) {
-            return res.status(400).json({message: '⚠️ Email already exists'});
+        const [existingUser] = await Users.findOne({ where: { email } });
+        if (existingUser) {
+            return res.status(400).json({ message: '⚠️ Email already exists' });
         }
         // 💡 เพิ่มข้อมูล
         const uuid = uuidV4()
-        let role = "admin"
-        const [result] = await pool.promise().query('INSERT INTO Users (uuid, email, username, password, phone, role) VALUES (?, ?,?,?,?)',
-            [uuid, email, username, hashedPassword, phone, role]);
+        const user = await Users.create({
+            uuid,
+            email,
+            username,
+            password: hashedPassword,
+            phone,
+            role: 'admin',
+        })
         res.status(201).json({
             message: '🎉 Administrator registered successfully!',
             user: {
-                uuid: uuid,
-                id: result.insertId,
-                email: req.body.email,
-                username: req.body.username,
-                role: 'admin',
-                phone: req.body.phone
+                uuid: user.uuid,
+                id: user.id,
+                email: user.email,
+                username: user.username,
+                role: user.role,
+                phone: user.phone
             }
         })
     } catch (err) {
@@ -165,7 +173,7 @@ exports.adminRegister = async (req, res, next) => {
 /**
  * @swagger
  * paths:
- *   /register:
+ *   /auth/register:
  *     post:
  *       tags:
  *         - Authentication
@@ -263,33 +271,39 @@ exports.adminRegister = async (req, res, next) => {
 
 exports.register = async (req, res, next) => {
     try {
-        const {err, value} = registerSchema.validate(req.body)
+        const { err, value } = registerSchema.validate(req.body)
         if (err) {
-            res.status(400).json({message: err.details[0].message});
+            res.status(400).json({ message: err.details[0].message });
         }
         // 💡 rename username จาก server
-        const {email, username: rawUsername, password, phone, role} = value
+        const { email, username: rawUsername, password, phone, role } = value
         // 💡 escape username
         const username = escapeHtml(rawUsername)
         const hashedPassword = await bcrypt.hash(password, 12);
         // 💡 ตรวจสอบ email
-        const [existingUser] = await pool.promise().query('SELECT * FROM Users WHERE email = ?', [email])
-        if (existingUser.length > 0) {
-            return res.status(400).json({message: '⚠️ Email already exists'});
+        const [existingUser] = await Users.findOne({ where: { email } });
+        if (existingUser) {
+            return res.status(400).json({ message: '⚠️ Email already exists' });
         }
         // 💡 เพิ่มข้อมูล
         const uuid = uuidV4()
-        const [result] = await pool.promise().query('INSERT INTO Users (uuid, email, username, password, phone, role) VALUES (?, ?,?,?,?)',
-            [uuid, email, username, hashedPassword, phone, role]);
+        const user = await Users.create({
+            uuid,
+            email,
+            username,
+            password: hashedPassword,
+            phone,
+            role,
+        })
         res.status(201).json({
             message: '🎉 User registered successfully!',
             user: {
-                uuid: result.uuid,
-                id: result.id,
-                email: result.email,
-                username: result.username,
-                role: result.role,
-                phone: result.phone
+                uuid: user.uuid,
+                id: user.id,
+                email: user.email,
+                username: user.username,
+                role: user.role,
+                phone: user.phone
             }
         })
     } catch (err) {
@@ -301,7 +315,7 @@ exports.register = async (req, res, next) => {
 /**
  * @swagger
  * paths:
- *   /login:
+ *   /auth/login:
  *     post:
  *       tags:
  *         - Authentication
@@ -358,6 +372,14 @@ exports.register = async (req, res, next) => {
  *                       phone:
  *                         type: string
  *                         example: "098-765-4321"
+ *                   accessToken:
+ *                     type: string
+ *                     example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIiwiaWF0IjoxNjI1NzYyMDAwfQ.4AGKKpp4N1ivx-_4n8AB-xrntslYpdj5r_y_wxG9M5g"
+ *                     description: The JWT access token used for authentication.
+ *                   refreshToken:
+ *                     type: string
+ *                     example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIiwiaWF0IjoxNjI1NzYyMDAwLCJleHBpcnMiOjE3NzM1NzgzMDF9.WecZnLZt9P9Gf8bp45YQHNVgWrZaWi8fFyWrQmkaNjE"
+ *                     description: The JWT refresh token used to get a new access token.
  *         '401':
  *           description: Invalid credentials
  *           content:
@@ -382,20 +404,25 @@ exports.register = async (req, res, next) => {
 
 exports.login = async (req, res, next) => {
     try {
-        const {email, password} = req.body
+        const { email, password } = req.body
         // 💡 ค้นหา User
-        const [users] = await pool.promise().query('SELECT * FROM Users WHERE email = ?', [email])
-        if (users.length === 0) {
-            return res.status(401).json({message: '⚠️ Invalid credentials'})
+        const user = await Users.findOne({ where: { email } })
+        if (!user) {
+            return res.status(401).json({ message: '⚠️ Invalid credentials' })
         }
-        const user = users[0]
         // 💡 ตรวจสอบ password
         const passwordMatch = await bcrypt.compare(password, user.password)
         if (!passwordMatch) {
-            return res.status(401).json({message: '⚠️ Invalid credentials'})
+            return res.status(401).json({ message: '⚠️ Invalid credentials' })
         }
         // 💡 สร้าง session
         req.session.userId = user.id
+        // 💡 สร้าง token
+        const accessToken = jwtToken.generateAccessToken(user)
+        const refreshToken = jwtToken.generateRefreshToken(user)
+        req.session.refreshToken = refreshToken
+        req.session.accessToken = accessToken
+
         res.status(200).json({
             message: '🎉 Login Successfully',
             user: {
@@ -405,19 +432,20 @@ exports.login = async (req, res, next) => {
                 username: user.username,
                 role: user.role,
                 phone: user.phone
-            }
+            },
+            accessToken: accessToken,
+            refreshToken: refreshToken
         })
     } catch (err) {
         next(err);
     }
-
 }
 
 // 📌 ลงชื่อออกจากระบบ
 /**
  * @swagger
  * paths:
- *   /logout:
+ *   /auth/logout:
  *     post:
  *       tags:
  *         - Authentication
@@ -464,9 +492,109 @@ exports.logout = async (req, res, next) => {
                 return next(err);
             }
             res.clearCookie('connect.sid');
-            res.status(200).json({message: '🎉 Logout successfully!'});
+            res.status(200).json({ message: '🎉 Logout successfully!' });
         });
     } else {
-        res.status(401).json({message: '⚠️ Not logged in'});
+        res.status(401).json({ message: '⚠️ Not logged in' });
     }
 };
+
+// 📌 refreshToken
+/**
+ * @swagger
+ * paths:
+ *   /auth/refresh-token:
+ *     post:
+ *       tags:
+ *         - Authentication
+ *       summary: Refresh access token
+ *       description: This endpoint allows the user to refresh their access token using a valid refresh token.
+ *       requestBody:
+ *         required: true
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 refreshToken:
+ *                   type: string
+ *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImlhdCI6MTYyNTc2MjAwMH0.xjQF-O41sFi4yf6acPxHL6VtOTcOjcPFGXSMqO4BR2U"
+ *                   description: The refresh token used to generate a new access token.
+ *               required:
+ *                 - refreshToken
+ *       responses:
+ *         '200':
+ *           description: Successfully refreshed access token
+ *           content:
+ *             application/json:
+ *               schema:
+ *                 type: object
+ *                 properties:
+ *                   accessToken:
+ *                     type: string
+ *                     example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIiwiaWF0IjoxNjI1NzYyMDAwfQ.4AGKKpp4N1ivx-_4n8AB-xrntslYpdj5r_y_wxG9M5g"
+ *                     description: The new JWT access token.
+ *         '400':
+ *           description: Refresh token is required
+ *           content:
+ *             application/json:
+ *               schema:
+ *                 type: object
+ *                 properties:
+ *                   message:
+ *                     type: string
+ *                     example: "⚠️ Refresh token is required"
+ *         '401':
+ *           description: Invalid refresh token
+ *           content:
+ *             application/json:
+ *               schema:
+ *                 type: object
+ *                 properties:
+ *                   message:
+ *                     type: string
+ *                     example: "⚠️ Invalid refresh token"
+ *         '404':
+ *           description: User not found
+ *           content:
+ *             application/json:
+ *               schema:
+ *                 type: object
+ *                 properties:
+ *                   message:
+ *                     type: string
+ *                     example: "⚠️ User not found"
+ *         '500':
+ *           description: Server error
+ *           content:
+ *             application/json:
+ *               schema:
+ *                 type: object
+ *                 properties:
+ *                   message:
+ *                     type: string
+ *                     example: "⚠️ Something went wrong"
+ */
+
+exports.refreshToken = async (req, res, next) => {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+        return res.status(400).json({ message: '⚠️ Refresh token is required' })
+    }
+    if (req.session.refreshToken !== refreshToken) {
+        return res.status(401).json({ message: '⚠️ Invalid refresh token' })
+    }
+    try {
+        const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET)
+        const user = await Users.findByPk(decoded.userId)
+        if (!user) {
+            return res.status(404).json({ message: '⚠️ User not found' })
+        }
+        const accessToken = jwtToken.generateAccessToken(user)
+        // 💡 อัพเดต accessToken
+        req.session.accessToken = accessToken
+        res.status(200).json({ accessToken: accessToken })
+    } catch (err) {
+        next(err);
+    }
+}

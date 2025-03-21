@@ -1,5 +1,5 @@
-const pool = require('../config/mysql.config')
-const {v4: uuidV4} = require('uuid');
+const Users = require('../models/users.model')
+const { v4: uuidV4 } = require('uuid');
 
 async function processLogin(provider, profile, done) {
     try {
@@ -7,17 +7,26 @@ async function processLogin(provider, profile, done) {
         const email = profile.emails[0].value;
         const username = profile.displayName || profile.username;
 
-        const [existingUser] = await pool.promise().query('SELECT * FROM Users WHERE email = ?', [email]);
-        if (existingUser.length > 0) {
-            await pool.promise().query('UPDATE Users SET provider = ?, providerId = ?, uuid = ? WHERE id = ?', [
-                provider, profile.id, uuid, existingUser[0].id
-            ])
-            return done(null, existingUser[0]);
+        const existingUser = await Users.findOne({ where: { email } })
+        if (existingUser) {
+            await Users.update(
+                { provider, providerId: profile.id, uuid },
+                { where: { id: existingUser.id } }
+            )
+            const updateUser = await Users.findByPk(existingUser.id)
+            return done(null, updateUser);
         } else {
-            const [result] = await pool.promise().query('INSERT INTO Users (provider, providerId, uuid, username, email, password, phone) VALUES (?, ?, ?, ?, ?, ?, ?)', [
-                provider, profile.id, uuid, username, email, null, null])
-            const [newUser] = await pool.promise().query('SELECT * FROM Users WHERE id = ?', [result.insertId])
-            return done(null, newUser[0]);
+            const newUser = await Users.create({
+                provider,
+                providerId: profile.id,
+                uuid,
+                email,
+                username,
+                password: null,
+                phone: null,
+                role: 'customer',
+            })
+            return done(null, newUser);
         }
     } catch (err) {
         return done(err)

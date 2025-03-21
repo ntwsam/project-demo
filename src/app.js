@@ -8,11 +8,13 @@ const swaggerUi = require('swagger-ui-express')
 
 const connectDB = require('./config/mongo.config')
 const passport = require('./config/passport.config')
-const {errorHandler} = require('./middleware/errorHandler')
-const rateLimiter = require('./middleware/rateLimiter')
-const {specs} = require('./config/swagger')
+const { errorHandler } = require('./middleware/errorHandler')
+const { apiLimiter } = require('./middleware/rateLimiter').apiLimiter
+const { specs } = require('./config/swagger')
 
 const authRoute = require('./routes/auth.route')
+const productRoute = require('./routes/products.route')
+const userRoute = require('./routes/users.route')
 
 connectDB(); // 💡 เชื่อมต่อ MongoDB
 
@@ -36,13 +38,15 @@ app.use(session({
     })
 }))
 
-app.use(rateLimiter.apiLimiter)
+app.use(apiLimiter)
 app.use(errorHandler)
 app.use(passport.initialize())
 app.use(passport.session())
 
 // 📌 กำหนดเส้นทาง
 app.use('/auth', authRoute) // 💡 เส้นทางยืนยันตน
+app.use('/products', productRoute) // 💡 เส้นทางสินค้า
+app.use('/users', userRoute) // 💡 เส้นทางผู้ใช้
 
 // 📌 API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
